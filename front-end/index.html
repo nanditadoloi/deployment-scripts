@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player with Quality Selector</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+
+<body>
+    <h3>Video Player</h3>
+    <video id="video" controls width="640" height="360"></video>
+    <br>
+    <label for="qualitySelect">Select Quality:</label>
+    <select id="qualitySelect" disabled></select>
+
+    <h4>Backend Information</h4>
+    <p id="regionInfo">Region: <span id="region"></span></p>
+    <p id="latencyInfo">Latency: <span id="latency"></span> ms</p>
+
+    <script>
+        var video = document.getElementById('video');
+        var qualitySelect = document.getElementById('qualitySelect');
+        var regionElement = document.getElementById('region');
+        var latencyElement = document.getElementById('latency');
+        var hls = new Hls();
+
+        // Point to the master playlist URL in your Flask app
+        var masterPlaylistUrl = 'http://vod.nanditaprojects.click/video/cars/master.m3u8';
+        var infoUrl = 'http://vod.nanditaprojects.click/info';
+
+        if (Hls.isSupported()) {
+            hls.loadSource(masterPlaylistUrl);
+            hls.attachMedia(video);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                video.play();
+
+                // Enable quality selection once the manifest is parsed
+                qualitySelect.disabled = false;
+
+                // Get available quality levels
+                var levels = hls.levels;
+
+                // Populate the quality selector with available levels
+                levels.forEach((level, index) => {
+                    var option = document.createElement('option');
+                    option.value = index;
+                    option.text = level.height + 'p (' + Math.round(level.bitrate / 1000) + ' kbps)';
+                    qualitySelect.appendChild(option);
+                });
+
+                // Auto-select the best quality
+                qualitySelect.value = hls.currentLevel;
+
+                // Add event listener for manual quality change
+                qualitySelect.addEventListener('change', function () {
+                    var selectedQuality = parseInt(qualitySelect.value);
+
+                    // Set HLS to selected quality, or -1 for auto
+                    hls.currentLevel = selectedQuality;
+                });
+            });
+
+            // Catch quality level switch errors
+            hls.on(Hls.Events.ERROR, function (event, data) {
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.error('Fatal network error encountered, trying to recover...');
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.error('Fatal media error encountered, trying to recover...');
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            hls.destroy();
+                            break;
+                    }
+                }
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Fallback for Safari or native HLS support
+            video.src = masterPlaylistUrl;
+            video.addEventListener('canplay', function () {
+                video.play();
+            });
+        }
+
+        // Fetch region and calculate latency
+        function fetchInfo() {
+            var startTime = Date.now();
+
+            fetch(infoUrl)
+                .then(response => response.json())
+                .then(data => {
+                    var endTime = Date.now();
+                    var latency = endTime - startTime; // Round-trip time
+
+                    // Update UI with region and latency
+                    regionElement.textContent = data.region || 'Unknown';
+                    latencyElement.textContent = latency;
+                })
+                .catch(error => {
+                    console.error('Error fetching region and latency info:', error);
+                });
+        }
+
+        // Fetch backend info on load
+        window.onload = function () {
+            fetchInfo();
+
+            // Optionally, you can refresh latency info every few seconds
+            setInterval(fetchInfo, 10000); // Update every 10 seconds
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,38 @@
+server:
+  persistentVolume:
+    storageClass: ""
+    existingClaim: ""
+
+alertmanager:
+  persistentVolume:
+    storageClass: ""
+    existingClaim: ""
+
+serverFiles:
+  prometheus.yml:
+    scrape_configs:
+      - job_name: "kubelet"
+        metrics_path: "/metrics/cadvisor"
+        scheme: "https"
+        bearer_token: "eyJhbGciOiJSUzI1NiIsImtpZCI6Ilk2WEVpVDM2dlFCOXRqcXNOQlNZNFM3Zi1mcE10cVZxMTZRczJJd3VwbkkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6InByb20tYXBpLXVzZXItc2VjcmV0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6InByb20tYXBpLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI4YTg2ZGI5MC1lNmZmLTQ4NGItODJjZi03YjE2NWQ0Mzg5NDQiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDpwcm9tLWFwaS11c2VyIn0.oaE05ppb_3TXlL7wbIlxfYeUsNL5QvgO-wlxCRUJ1v33AXwZhcGex_3_LRUUcLE1MAH-IhoZS3h_v_ppvOItVoyr-0qK6JXP5uXlPALQ4zTTRhXtPfRWDkX-WLQNSz8GbX8YUKwDAxXNlXBaQnA--vxxe2UXzSbLl6XaNlYi1OdNZpQu5Sdq6tPKW1c1hxTdLIuwOqcUO5smaOTLozOYlQ-R7Q5L-Ga2nRCvi1hv5oSWx42ggB63nESBU3K9qEnTZ1LO9dFXlueC9aRUtvglqCeCO5-77gUSS2HnzPaVtCodlhsFMIr76KkvUMliD3_r0eL07OS-dXVxtsX8q05NOQ"
+        tls_config:
+          insecure_skip_verify: true
+        static_configs:
+          - targets: ['172.31.1.230:10250']
+      - job_name: 'cluster-autoscaler'
+        kubernetes_sd_configs:
+          - role: service
+            namespaces:
+              names:
+                - kube-system
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            regex: cluster-autoscaler-metrics
+            action: keep
+          - source_labels: [__meta_kubernetes_service_port_name]
+            regex: metrics
+            action: keep
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            target_label: service

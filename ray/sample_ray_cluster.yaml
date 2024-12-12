@@ -1,0 +1,39 @@
+apiVersion: ray.io/v1alpha1
+kind: RayCluster
+metadata:
+  name: raycluster-sample
+spec:
+  rayVersion: '2.39.0'
+  headGroupSpec:
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+      temp-dir: '/tmp/ray'
+    template:
+      spec:
+        containers:
+          - name: ray-head
+            image: docker.io/rayproject/ray-ml:2.39.0.deprecated-py310-cpu
+            resources:
+              limits:
+                cpu: '3'
+                memory: 3Gi
+              requests:
+                cpu: '3'
+                memory: 3Gi
+  workerGroupSpecs:
+    - groupName: worker-group
+      replicas: 1
+      rayStartParams:
+        temp-dir: '/tmp/ray'
+      template:
+        spec:
+          containers:
+            - name: ray-worker
+              image: docker.io/rayproject/ray-ml:2.39.0.deprecated-py310-cpu
+              resources:
+                limits:
+                  cpu: '3'
+                  memory: 3Gi
+                requests:
+                  cpu: '3'
+                  memory: 3Gi

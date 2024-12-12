@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    meta.helm.sh/release-name: cluster-autoscaler
+    meta.helm.sh/release-namespace: kube-system
+  creationTimestamp: "2024-10-18T18:19:14Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: cluster-autoscaler
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: aws-cluster-autoscaler
+    helm.sh/chart: cluster-autoscaler-9.43.0
+  name: cluster-autoscaler-us-west-1
+  namespace: kube-system
+  resourceVersion: "7778991"
+  uid: c95e76a4-d813-4145-8488-cb2379e13ddb
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: cluster-autoscaler
+      app.kubernetes.io/name: aws-cluster-autoscaler
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/instance: cluster-autoscaler
+        app.kubernetes.io/name: aws-cluster-autoscaler
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8085"
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - command:
+        - ./cluster-autoscaler
+        - --cloud-provider=aws
+        - --namespace=kube-system
+        - --node-group-auto-discovery=asg:tag=kubernetes.io/cluster/us-west-1-asg
+        - --expander=least-waste
+        - --logtostderr=true
+        - --scale-down-unneeded-time=10m
+        - --scale-down-unready-time=20m
+        - --stderrthreshold=info
+        - --v=6
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.serviceAccountName
+        - name: AWS_REGION
+          value: us-west-1
+        image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.31.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health-check
+            port: 8085
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: aws-cluster-autoscaler
+        ports:
+        - containerPort: 8085
+          name: metrics
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      priorityClassName: system-cluster-critical
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: cluster-autoscaler-aws-cluster-autoscaler
+      serviceAccountName: cluster-autoscaler-aws-cluster-autoscaler
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2024-10-18T18:19:14Z"
+    lastUpdateTime: "2024-10-18T18:19:15Z"
+    message: ReplicaSet "cluster-autoscaler-aws-cluster-autoscaler-6486589d97" has
+      successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2024-11-27T17:29:01Z"
+    lastUpdateTime: "2024-11-27T17:29:01Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cluster-autoscaler-metrics
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: aws-cluster-autoscaler
+spec:
+  selector:
+    app.kubernetes.io/name: aws-cluster-autoscaler
+  ports:
+  - name: metrics
+    port: 8085
+    targetPort: metrics

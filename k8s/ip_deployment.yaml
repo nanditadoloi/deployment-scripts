@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app-deployment  # Name of the deployment
+  labels:
+    app: flask-app  # Deployment label (optional but useful)
+spec:
+  replicas: 1  # Number of pod replicas to run
+  selector:
+    matchLabels:
+      app: flask-app  # Must match the pod template labels
+  template:
+    metadata:
+      labels:
+        app: flask-app  # Pod label (for selection by service)
+    spec:
+      # affinity:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #       - weight: 100
+      #         podAffinityTerm:
+      #           labelSelector:
+      #             matchExpressions:
+      #               - key: app
+      #                 operator: In
+      #                 values:
+      #                   - flask-app
+      #           topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: flask-app-container
+        image: nanditad48/image_processor:0.0.1  # Replace with your actual image
+        ports:
+        - containerPort: 5000  # Flask app port
+        env:
+          - name: FLASK_ENV
+            value: "production"
+        resources:
+          requests:
+            cpu: "700m"
+          limits:
+            cpu: "1000m"
+# ---
+# apiVersion: autoscaling.k8s.io/v1
+# kind: VerticalPodAutoscaler
+# metadata:
+#   name: flask-app-vpa
+# spec:
+#   targetRef:
+#     apiVersion: "apps/v1"
+#     kind: Deployment
+#     name: flask-app-deployment
+#   updatePolicy:
+#     updateMode: "Auto"  # Automatically adjust CPU and memory requests
+#   resourcePolicy:
+#     containerPolicies:
+#       - containerName: flask-app-container
+#         minAllowed:
+#           cpu: "10m"  # Minimum 50% of a CPU
+#         maxAllowed:
+#           cpu: "1000m"  # Maximum 100% of a CPU
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: flask-app-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flask-app-deployment
+  minReplicas: 1
+  maxReplicas: 10  # Scale up to 10 replicas
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+---

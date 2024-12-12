@@ -1,0 +1,49 @@
+apiVersion: ray.io/v1alpha1
+kind: RayJob
+metadata:
+  name: rayjob-sample
+spec:
+  entrypoint: |
+    import ray
+    
+    @ray.remote
+    def hello():
+        return "Hello from Ray!"
+    
+    ray.init()
+    results = ray.get([hello.remote() for _ in range(4)])
+    print(results)
+  
+  rayClusterSpec:
+    rayVersion: '2.9.0'
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: '0.0.0.0'
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: docker.io/rayproject/ray@sha256:e64546fb5c3233bb0f33608e186e285c52cdd7440cae1af18f7fcde1c04e49f2
+              resources:
+                limits:
+                  cpu: '1'
+                  memory: 3Gi
+                requests:
+                  cpu: '1'
+                  memory: 3Gi
+    workerGroupSpecs:
+      - groupName: worker-group
+        replicas: 1
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: docker.io/rayproject/ray@sha256:e64546fb5c3233bb0f33608e186e285c52cdd7440cae1af18f7fcde1c04e49f2
+                resources:
+                  limits:
+                    cpu: '1'
+                    memory: 3Gi
+                  requests:
+                    cpu: '1'
+                    memory: 3Gi

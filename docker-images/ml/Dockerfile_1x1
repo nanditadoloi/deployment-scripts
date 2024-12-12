@@ -1,0 +1,40 @@
+# Start with NVIDIA's CUDA base image (CUDA 11.7, CUDNN 8, Ubuntu 20.04)
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
+
+# Set environment variables for CUDA and NCCL
+ENV TORCH_CUDA_ARCH_LIST="7.0" \
+    CUDA_VISIBLE_DEVICES=0 \
+    NCCL_DEBUG=INFO
+
+# Install essential utilities and Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    wget \
+    python3-pip \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN python3 -m pip install --upgrade pip
+
+# Install PyTorch, Torch Distributed, and related dependencies for FSDP
+RUN pip install torch==1.13.1+cu117 \
+                torchvision==0.14.1+cu117 \
+                torchaudio==0.13.1 \
+                -f https://download.pytorch.org/whl/cu117
+
+# Install PyTorch Lightning, useful for FSDP model training
+RUN pip install pytorch-lightning==1.6.5
+
+# Optional: Install other common dependencies
+RUN pip install numpy scikit-learn tensorboard
+
+# Set the working directory and add your model code
+WORKDIR /workspace
+COPY ./model /workspace/model
+COPY ./train.py /workspace/train.py
+
+# Set the default command to run the training script
+CMD ["python3", "train.py"]

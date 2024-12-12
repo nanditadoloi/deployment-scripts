@@ -1,0 +1,5 @@
+flask
+pillow
+flask-cors
+boto3
+requests

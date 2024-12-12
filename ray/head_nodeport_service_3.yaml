@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ray-head-service-3
+spec:
+  type: NodePort
+  selector:
+    ray.io/node-type: head
+  ports:
+    - port: 8889
+      targetPort: 8889
+      nodePort: 30003

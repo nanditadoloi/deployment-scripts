@@ -1,0 +1,51 @@
+# Start with NVIDIA’s CUDA base image with CUDA 11.7 and CUDNN 8
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
+
+# Set environment variables for NCCL and CUDA
+# NCCL_P2P_LEVEL=NVL is for NVLink
+ENV NCCL_P2P_LEVEL=NVL \
+    TORCH_CUDA_ARCH_LIST="7.0" \
+    CUDA_VISIBLE_DEVICES=0,1,2,3 \
+    NCCL_DEBUG=INFO
+
+# Install essential utilities and dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    wget \
+    python3-pip \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN python3 -m pip install --upgrade pip
+
+# Install PyTorch, Torch Distributed, and PyTorch Lightning for FSDP support
+RUN pip install torch==1.13.1+cu117 \
+                torchvision==0.14.1+cu117 \
+                torchaudio==0.13.1 \
+                -f https://download.pytorch.org/whl/cu117
+
+# Install PyTorch Lightning, required for FSDP model training
+RUN pip install pytorch-lightning==1.6.5
+
+# Install NCCL and dependencies for FSDP and P2P communication
+RUN pip install "torch[distributed]" \
+                tensorboard \
+                numpy \
+                scikit-learn
+
+# Set up entry point for distributed training, enabling NCCL as backend
+ENV MASTER_ADDR="localhost" \
+    MASTER_PORT=12355 \
+    WORLD_SIZE=4  # Adjust WORLD_SIZE based on number of GPUs used
+
+# Add your model and training script to the Docker container
+# (Replace these paths as needed)
+WORKDIR /workspace
+COPY ./model /workspace/model
+COPY ./train.py /workspace/train.py
+
+# Set the default command to run the training script with Torch Distributed
+CMD ["python3", "-m", "torch.distributed.run", "--nproc_per_node=4", "train.py"]
